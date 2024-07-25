@@ -1,0 +1,65 @@
+version: 0.2
+
+env:
+  variables:
+    AWS_ACCOUNT_ID: "891377233289"
+    REPOSITORY_NAME: "nginx"
+    REGION: "ap-south-1"
+
+phases:
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com
+      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - IMAGE_TAG=${COMMIT_HASH:=latest}
+  build:
+    commands:
+      - echo Build started on `date`
+      - echo Building the Docker image...
+      - docker build -t $REPOSITORY_NAME:$IMAGE_TAG .
+      - docker tag $REPOSITORY_NAME:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$REPOSITORY_NAME:$IMAGE_TAG
+  post_build:
+    commands:
+      - echo Build completed on `date`
+      - echo Pushing the Docker image...
+      - docker push $AWS_ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$REPOSITORY_NAME:$IMAGE_TAG
+      - echo Updating Kubernetes deployment...
+      - sed -i 's|CONTAINER_IMAGE|$AWS_ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$REPOSITORY_NAME:$IMAGE_TAG|g' manifests/deployment.yaml
+artifacts:
+  files:
+    - '**/*'
+
+
+# version: 0.2
+
+# env:
+#   variables:
+#     AWS_ACCOUNT_ID: "891377233289"
+#     REPOSITORY_NAME: "nginx-public-repo"
+#     REGION: "ap-south-1"
+#     PUBLIC_ECR_REPOSITORY: "public.ecr.aws/nginx-public-repo" # Update with your public ECR repo
+
+# phases:
+#   pre_build:
+#     commands:
+#       - echo Logging in to Amazon ECR...
+#       - aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com
+#       - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+#       - IMAGE_TAG=${COMMIT_HASH:=latest}
+#   build:
+#     commands:
+#       - echo Build started on `date`
+#       - echo Building the Docker image...
+#       - docker build -t $REPOSITORY_NAME:$IMAGE_TAG .
+#       - docker tag $REPOSITORY_NAME:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$REPOSITORY_NAME:$IMAGE_TAG
+#   post_build:
+#     commands:
+#       - echo Build completed on `date`
+#       - echo Pushing the Docker image...
+#       - docker push public.ecr.aws/q7g1d0n7/nginx-public-repo:$IMAGE_TAG
+#       - echo Updating Kubernetes deployment...
+#       - sed -i 's|CONTAINER_IMAGE|$PUBLIC_ECR_REPOSITORY:$IMAGE_TAG|g' manifests/deployment.yaml
+# artifacts:
+#   files:
+#     - '**/*'

@@ -1,0 +1,14 @@
+version: 0.0
+os: linux
+files:
+  - source: ./manifests/
+    destination: /tmp/manifests/
+  - source: ./scripts/
+    destination: /tmp/scripts/
+    timeout: 30
+
+hooks:
+  AfterInstall:
+    - location: /scripts/deploy.sh
+      timeout: 300
+      #runas: root
